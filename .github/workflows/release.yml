@@ -1,0 +1,117 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: never
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with: { toolchain: stable }
+      - name: apt deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libwayland-dev libgtk-3-dev pkg-config cmake
+      - name: build release
+        run: cargo build --release
+      - name: deb
+        run: |
+          cargo install cargo-deb --locked
+          cargo deb --no-strip
+      - name: rpm
+        run: |
+          cargo install cargo-generate-rpm --locked
+          cargo generate-rpm
+      - name: source tarball
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz -o dist/codify-source.tar.gz HEAD
+          cp target/release/codify dist/codify-linux-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+            dist/*
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with: { toolchain: stable }
+      - name: build release
+        run: cargo build --release
+      - name: dmg
+        run: |
+          chmod +x packaging/macos/dmg.sh
+          ./packaging/macos/dmg.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.dmg
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with: { toolchain: stable }
+      - name: build release
+        run: cargo build --release
+      - name: msi (wix)
+        shell: pwsh
+        run: |
+          choco install wixtoolset -y
+          $x64 = (Get-ChildItem -Recurse "C:\Program Files (x86)\WiX Toolset*\bin" -Filter candle.exe | Select-Object -First 1).DirectoryName
+          & "$x64\candle.exe" packaging\windows\codify.wxs -doutput=target\release\codify.exe
+          & "$x64\light.exe" codify.wixobj -o dist\Codify.msi
+      - name: exe installer (inno)
+        shell: pwsh
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\installer.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            dist/Codify-Setup-*.exe
+            dist/Codify.msi
+
+  flatpak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: dist/codify.flatpak
+          manifest-path: packaging/linux/org.codify.Codify.yml
+          cache-key: flatpak-${{ runner.os }}
+          branch: stable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flatpak
+          path: dist/codify.flatpak
+
+  release:
+    needs: [linux, macos, windows, flatpak]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: artifacts }
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*
+          generate_release_notes: true

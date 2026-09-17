@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Codify
+GenericName=Code Editor
+Comment=A fast, minimal IDE built with GPUI
+Exec=codify %F
+Icon=org.codify.Codify
+Terminal=false
+Categories=Development;IDE;TextEditor;
+Keywords=editor;code;ide;terminal;
+StartupNotify=true
+StartupWMClass=codify
+MimeType=text/plain;application/json;text/x-python;text/x-rust;application/xml;

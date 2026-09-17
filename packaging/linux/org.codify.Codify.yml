@@ -1,0 +1,31 @@
+id: org.codify.Codify
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+command: codify
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=x11
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.Notifications
+
+modules:
+  - name: codify
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --locked
+      - install -Dm755 target/release/codify /app/bin/codify
+      - install -Dm644 packaging/linux/codify.desktop /app/share/applications/org.codify.Codify.desktop
+      - install -Dm644 LICENSE /app/share/licenses/codify/LICENSE
+      - install -Dm644 README.md /app/share/doc/codify/README.md
+    build-options:
+      build-args:
+        - --share=network
+      env:
+        - RUSTFLAGS=--remap-path-prefix=/app=/usr
+    sources:
+      - type: dir
+        path: ../..

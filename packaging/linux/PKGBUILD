@@ -1,0 +1,41 @@
+# Maintainer: lordpipon <lordpipon@users.noreply.github.com>
+# Build from source (Arch Linux). Source tarball is produced by the release
+# workflow; or point `source=` at the git tag directly.
+
+pkgname=codify
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="A fast, minimal IDE built with GPUI"
+arch=('x86_64' 'aarch64')
+url="https://github.com/lordpipon/codify"
+license=('MIT')
+makedepends=('cargo' 'rust' 'clang' 'libxkbcommon' 'wayland' 'xorg-xwayland')
+depends=(
+  'libxkbcommon'
+  'wayland'
+  'xorg-xwayland'
+  'glibc'
+  'gcc-libs'
+  'fontconfig'
+  'freetype2'
+)
+source=("$url/archive/$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "$srcdir/codify-$pkgver"
+  cargo build --release --locked
+}
+
+check() {
+  cd "$srcdir/codify-$pkgver"
+  cargo test --release --locked
+}
+
+package() {
+  cd "$srcdir/codify-$pkgver"
+  install -Dm755 target/release/codify "$pkgdir/usr/bin/codify"
+  install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -Dm644 packaging/linux/codify.desktop "$pkgdir/usr/share/applications/org.codify.Codify.desktop"
+}

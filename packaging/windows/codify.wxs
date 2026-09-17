@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX toolset 4 bundle: produces Codify.msi. No logos, just the name. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Codify"
+           Manufacturer="lordpipon"
+           Version="0.1.0"
+           Language="1033"
+           UpgradeCode="A1B2C3D4-0000-4F2E-9AC1-CODIFY0001">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Codify is already installed." />
+    <MediaTemplate EmbedCab="true" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="INSTALLFOLDER" Name="Codify">
+        <Component Id="MainBinary" Guid="B2C3D4E5-1111-5F3E-ABD2-CODIFY0002" Bitness="Always64">
+          <File Id="codify.exe" Source="codify.exe" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Codify">
+        <Component Id="StartMenuEntry" Guid="C3D4E5F6-2222-6F4E-BCE3-CODIFY0003">
+          <Shortcut Id="CodifyShortcut"
+                    Name="Codify"
+                    Description="Codify - a fast, minimal IDE"
+                    Target="[INSTALLFOLDER]codify.exe" />
+          <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+          <RegistryValue Root="HKCU" Key="Software\Codify" Name="installed" Type="integer" Value="1"
+                         KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="D4E5F6A7-3333-7F5E-CDF4-CODIFY0004">
+        <Shortcut Id="DesktopCodifyShortcut"
+                  Name="Codify"
+                  Description="Codify - a fast, minimal IDE"
+                  Target="[INSTALLFOLDER]codify.exe" />
+        <RegistryValue Root="HKCU" Key="Software\Codify" Name="desktop" Type="integer" Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+  </Package>
+</Wix>

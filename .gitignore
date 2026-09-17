@@ -1,0 +1,9 @@
+/target
+**/*.rs.bk
+*.dmg
+*.msi
+*.exe
+*.deb
+*.rpm
+.cargo/config
+Cargo.lock.orig
