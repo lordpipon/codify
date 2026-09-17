@@ -35,6 +35,16 @@ const RESIZE_EDGE: f32 = 6.0;
 const TERMINAL_H: f32 = 220.0;
 const TERMINAL_ZOOM_H: f32 = 520.0;
 
+#[cfg(target_os = "macos")]
+const IS_MACOS: bool = true;
+#[cfg(not(target_os = "macos"))]
+const IS_MACOS: bool = false;
+
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_GUTTER: f32 = 78.0;
+#[cfg(not(target_os = "macos"))]
+const TRAFFIC_LIGHT_GUTTER: f32 = 0.0;
+
 impl RootView {
     pub fn new(cx: &mut Context<Self>) -> Self {
         let editor = cx.new(Editor::new);
@@ -469,6 +479,7 @@ impl Render for RootView {
                     .justify_between()
                     .h(px(TITLEBAR_H))
                     .px_4()
+                    .when(IS_MACOS, |d| d.pl(px(TRAFFIC_LIGHT_GUTTER)))
                     .bg(theme::color(theme::BG_DARKER))
                     .border_b_1()
                     .border_color(theme::color(theme::BG))
@@ -566,68 +577,66 @@ impl Render for RootView {
                                     ),
                             )
 
-                            // Minimize
-                            .child(
-                                div()
-                                    .w(px(28.0))
-                                    .h(px(24.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_md()
-                                    .hover(|s| s.bg(theme::color(theme::SURFACE)))
-                                    .cursor_pointer()
-                                    .id("win-min")
-                                    .on_click(|_, window, _cx| window.minimize_window())
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(theme::color(theme::SUBTEXT))
-                                            .child("\u{2013}"),
-                                    ),
-                            )
-
-                            // Maximize
-                            .child(
-                                div()
-                                    .w(px(28.0))
-                                    .h(px(24.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_md()
-                                    .hover(|s| s.bg(theme::color(theme::SURFACE)))
-                                    .cursor_pointer()
-                                    .id("win-max")
-                                    .on_click(|_, window, _cx| window.zoom_window())
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(theme::color(theme::SUBTEXT))
-                                            .child("\u{25a1}"),
-                                    ),
-                            )
-
-                            // Close
-                            .child(
-                                div()
-                                    .w(px(28.0))
-                                    .h(px(24.0))
-                                    .flex()
-                                    .items_center()
-                                    .justify_center()
-                                    .rounded_md()
-                                    .hover(|s| s.bg(theme::color(theme::RED)))
-                                    .cursor_pointer()
-                                    .id("win-close")
-                                    .on_click(|_, window, _cx| window.remove_window())
-                                    .child(
-                                        div()
-                                            .text_sm()
-                                            .text_color(theme::color(theme::SUBTEXT))
-                                            .child("\u{2715}"),
-                                    ),
-                            ),
+                            // Native traffic lights on macOS; custom controls elsewhere.
+                            .when(!IS_MACOS, |bar| {
+                                bar.child(
+                                    div()
+                                        .w(px(28.0))
+                                        .h(px(24.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_md()
+                                        .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                        .cursor_pointer()
+                                        .id("win-min")
+                                        .on_click(|_, window, _cx| window.minimize_window())
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .child("\u{2013}"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(28.0))
+                                        .h(px(24.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_md()
+                                        .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                        .cursor_pointer()
+                                        .id("win-max")
+                                        .on_click(|_, window, _cx| window.zoom_window())
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .child("\u{25a1}"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .w(px(28.0))
+                                        .h(px(24.0))
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_md()
+                                        .hover(|s| s.bg(theme::color(theme::RED)))
+                                        .cursor_pointer()
+                                        .id("win-close")
+                                        .on_click(|_, window, _cx| window.remove_window())
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .child("\u{2715}"),
+                                        ),
+                                )
+                            }),
                     ),
             )
 
