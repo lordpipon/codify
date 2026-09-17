@@ -6,8 +6,9 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 BIN_NAME=codify
+VERSION="${CODIFY_VERSION:-0.0.0}"
 BUNDLE_APP="target/release/bundle/osx/$BIN_NAME.app"
-DMG="dist/codify-$BIN_NAME.dmg"
+DMG="dist/Codify-$VERSION.dmg"
 
 # No logo: just the name in Info.plist.
 if [ ! -f Cargo.toml ]; then
@@ -26,7 +27,7 @@ if [ ! -d "$BUNDLE_APP" ]; then
     APP_DIR="dist/Codify.app/Contents/MacOS"
     mkdir -p "$APP_DIR"
     cp target/release/$BIN_NAME "$APP_DIR/$BIN_NAME"
-    cat > dist/Codify.app/Contents/Info.plist <<'PLIST'
+    cat > dist/Codify.app/Contents/Info.plist <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -36,7 +37,7 @@ if [ ! -d "$BUNDLE_APP" ]; then
   <key>CFBundleIdentifier</key><string>org.codify.Codify</string>
   <key>CFBundleExecutable</key><string>codify</string>
   <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
+  <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
 </dict>
 </plist>

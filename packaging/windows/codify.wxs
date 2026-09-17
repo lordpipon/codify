@@ -1,45 +1,43 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- WiX toolset 4 bundle: produces Codify.msi. No logos, just the name. -->
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-  <Package Name="Codify"
-           Manufacturer="lordpipon"
-           Version="0.1.0"
+<!-- WiX Toolset v3 source: produces a Codify .msi. No logos, just the name. -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="Codify"
            Language="1033"
-           UpgradeCode="A1B2C3D4-0000-4F2E-9AC1-CODIFY0001">
+           Version="$(var.Version)"
+           Manufacturer="lordpipon"
+           UpgradeCode="7D4E1A2B-3C5D-4E6F-8A9B-0C1D2E3F4051">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of Codify is already installed." />
-    <MediaTemplate EmbedCab="true" />
+    <MediaTemplate EmbedCab="yes" />
 
-    <StandardDirectory Id="ProgramFilesFolder">
-      <Directory Id="INSTALLFOLDER" Name="Codify">
-        <Component Id="MainBinary" Guid="B2C3D4E5-1111-5F3E-ABD2-CODIFY0002" Bitness="Always64">
-          <File Id="codify.exe" Source="codify.exe" KeyPath="yes" />
-        </Component>
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Codify">
+          <Component Id="MainBinary" Guid="1A2B3C4D-5E6F-4A1B-8C2D-3E4F50617283">
+            <File Id="codify.exe" Source="$(var.Source)" KeyPath="yes" />
+          </Component>
+        </Directory>
       </Directory>
-    </StandardDirectory>
-
-    <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="ApplicationProgramsFolder" Name="Codify">
-        <Component Id="StartMenuEntry" Guid="C3D4E5F6-2222-6F4E-BCE3-CODIFY0003">
-          <Shortcut Id="CodifyShortcut"
-                    Name="Codify"
-                    Description="Codify - a fast, minimal IDE"
-                    Target="[INSTALLFOLDER]codify.exe" />
-          <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
-          <RegistryValue Root="HKCU" Key="Software\Codify" Name="installed" Type="integer" Value="1"
-                         KeyPath="yes" />
-        </Component>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Codify">
+          <Component Id="StartMenuEntry" Guid="2B3C4D5E-6F70-4B2C-9D3E-4F5061728394">
+            <Shortcut Id="CodifyShortcut"
+                      Name="Codify"
+                      Description="Codify - a fast, minimal IDE"
+                      Target="[INSTALLFOLDER]codify.exe"
+                      WorkingDirectory="INSTALLFOLDER" />
+            <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+            <RegistryValue Root="HKCU" Key="Software\Codify" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+          </Component>
+        </Directory>
       </Directory>
-    </StandardDirectory>
+      <Directory Id="DesktopFolder" />
+    </Directory>
 
-    <StandardDirectory Id="DesktopFolder">
-      <Component Id="DesktopShortcut" Guid="D4E5F6A7-3333-7F5E-CDF4-CODIFY0004">
-        <Shortcut Id="DesktopCodifyShortcut"
-                  Name="Codify"
-                  Description="Codify - a fast, minimal IDE"
-                  Target="[INSTALLFOLDER]codify.exe" />
-        <RegistryValue Root="HKCU" Key="Software\Codify" Name="desktop" Type="integer" Value="1"
-                       KeyPath="yes" />
-      </Component>
-    </StandardDirectory>
-  </Package>
+    <Feature Id="MainFeature" Title="Codify" Level="1">
+      <ComponentRef Id="MainBinary" />
+      <ComponentRef Id="StartMenuEntry" />
+    </Feature>
+  </Product>
 </Wix>

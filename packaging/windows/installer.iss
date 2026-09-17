@@ -1,5 +1,7 @@
 #define MyAppName "Codify"
-#define MyAppVersion "0.1.0"
+#ifndef MyAppVersion
+  #define MyAppVersion "0.0.0"
+#endif
 #define MyAppPublisher "lordpipon"
 #define MyAppExeName "codify.exe"
 

@@ -1,7 +1,5 @@
 # Codify
 
-**v0.1.0**
-
 A fast, minimal IDE built on **Rust + GPUI** — the same GPU-accelerated UI engine that powers Zed.
 
 No Electron, no web tech. It's a native desktop app, built to be *yours*.
@@ -15,13 +13,13 @@ Grab the latest build from [**GitHub Releases**](https://github.com/lordpipon/co
 
 | Platform | Package |
 |----------|---------|
-| **Windows** | `Codify-Setup-0.1.0.exe` (Inno) · `Codify-0.1.0.msi` (WiX) |
-| **macOS** | `Codify-0.1.0.dmg` |
-| **Linux (Debian/Ubuntu)** | `codify_0.1.0-1_amd64.deb` |
-| **Linux (Fedora/RHEL)** | `codify-0.1.0-1.x86_64.rpm` |
-| **Arch Linux** | `codify-0.1.0-1-x86_64.pkg.tar.zst` |
-| **Flatpak** | `codify.flatpak` |
-| **Source** | `codify-0.1.0-source.tar.gz` |
+| **Windows** | `Codify-Setup-<version>.exe` (Inno) · `Codify-<version>.msi` (WiX) |
+| **macOS** | `Codify-<version>.dmg` |
+| **Linux (Debian/Ubuntu)** | `codify_<version>-1_amd64.deb` |
+| **Linux (Fedora/RHEL)** | `codify-<version>-1.x86_64.rpm` |
+| **Arch Linux** | `codify-<version>-1-x86_64.pkg.tar.zst` |
+| **Flatpak** | `codify-<version>.flatpak` |
+| **Source** | `codify-<version>-source.tar.gz` |
 
 Releases are published automatically by CI (`.github/workflows/release.yml`) when a `v*` tag is pushed, with a changelog of what changed.
 
@@ -100,11 +98,11 @@ Versioning follows [SemVer](https://semver.org/), tracked in `Cargo.toml` and ta
 To cut a release:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag vX.Y.Z
+git push origin vX.Y.Z
 ```
 
-The workflow builds every package, then creates a GitHub Release titled `Codify v0.1.0` with:
+The workflow builds every package, then creates a GitHub Release titled `Codify vX.Y.Z` with:
 
 - a generated changelog (what changed since the previous release)
 - the versioned installers listed above attached as assets

@@ -12,14 +12,23 @@ env:
 jobs:
   linux:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with: { toolchain: stable }
+      - name: version
+        id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: apt deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-dev libwayland-dev libgtk-3-dev pkg-config cmake
+          sudo apt-get install -y \
+            libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev libgtk-3-dev \
+            libx11-xcb-dev libxcb1-dev libfontconfig1-dev libfreetype6-dev \
+            libvulkan-dev pkg-config cmake clang
       - name: build release
         run: cargo build --release
       - name: deb
@@ -30,11 +39,32 @@ jobs:
         run: |
           cargo install cargo-generate-rpm --locked
           cargo generate-rpm
-      - name: source tarball
+      - name: arch package
+        env:
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          sudo apt-get install -y ruby ruby-dev build-essential zstd libarchive-tools
+          sudo gem install fpm --no-document
+          mkdir -p dist
+          fpm -s dir -t pacman -n codify -v "$V" --architecture x86_64 \
+            --license MIT --url "https://github.com/lordpipon/codify" \
+            --description "A fast, minimal IDE built with GPUI" \
+            --maintainer "lordpipon <lordpipon@users.noreply.github.com>" \
+            --depends glibc --depends gcc-libs --depends libxkbcommon --depends wayland \
+            --depends fontconfig --depends freetype2 \
+            -p "dist/codify-${V}-1-x86_64.pkg.tar.zst" \
+            target/release/codify=/usr/bin/codify \
+            packaging/linux/codify.desktop=/usr/share/applications/org.codify.Codify.desktop \
+            README.md=/usr/share/doc/codify/README.md \
+            LICENSE=/usr/share/licenses/codify/LICENSE
+      - name: source tarball + raw binary
+        env:
+          V: ${{ steps.v.outputs.version }}
         run: |
           mkdir -p dist
-          git archive --format=tar.gz -o dist/codify-source.tar.gz HEAD
-          cp target/release/codify dist/codify-linux-x86_64
+          git archive --format=tar.gz --prefix="codify-$V/" \
+            -o "dist/codify-$V-source.tar.gz" HEAD
+          cp target/release/codify "dist/codify-$V-linux-x86_64"
       - uses: actions/upload-artifact@v4
         with:
           name: linux
@@ -49,9 +79,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with: { toolchain: stable }
+      - name: version
+        id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: build release
         run: cargo build --release
       - name: dmg
+        env:
+          CODIFY_VERSION: ${{ steps.v.outputs.version }}
         run: |
           chmod +x packaging/macos/dmg.sh
           ./packaging/macos/dmg.sh
@@ -66,52 +102,86 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with: { toolchain: stable }
+      - name: version
+        id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: build release
         run: cargo build --release
       - name: msi (wix)
         shell: pwsh
         run: |
           choco install wixtoolset -y
-          $x64 = (Get-ChildItem -Recurse "C:\Program Files (x86)\WiX Toolset*\bin" -Filter candle.exe | Select-Object -First 1).DirectoryName
-          & "$x64\candle.exe" packaging\windows\codify.wxs -doutput=target\release\codify.exe
-          & "$x64\light.exe" codify.wixobj -o dist\Codify.msi
+          $wix = (Get-ChildItem -Recurse "C:\Program Files (x86)\WiX Toolset*\bin" -Filter candle.exe | Select-Object -First 1).DirectoryName
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "$wix\candle.exe" -arch x64 -dVersion="${{ steps.v.outputs.version }}" -dSource="target\release\codify.exe" -out dist\codify.wixobj packaging\windows\codify.wxs
+          & "$wix\light.exe" -out "dist\Codify-${{ steps.v.outputs.version }}.msi" dist\codify.wixobj
       - name: exe installer (inno)
         shell: pwsh
         run: |
           choco install innosetup -y
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" packaging\windows\installer.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DMyAppVersion="${{ steps.v.outputs.version }}" /Odist packaging\windows\installer.iss
       - uses: actions/upload-artifact@v4
         with:
           name: windows
           path: |
             dist/Codify-Setup-*.exe
-            dist/Codify.msi
+            dist/Codify-*.msi
 
   flatpak:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+      - name: version
+        id: v
+        shell: bash
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: dist/codify.flatpak
+          bundle: dist/codify-${{ steps.v.outputs.version }}.flatpak
           manifest-path: packaging/linux/org.codify.Codify.yml
           cache-key: flatpak-${{ runner.os }}
           branch: stable
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak
-          path: dist/codify.flatpak
+          path: dist/*.flatpak
 
   release:
     needs: [linux, macos, windows, flatpak]
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: build changelog
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREV="$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || true)"
+          if [ -n "$PREV" ]; then RANGE="${PREV}..${TAG}"; else RANGE="${TAG}"; fi
+          {
+            echo "## What's changed"
+            echo
+            git log --no-merges --pretty=format:'- %s' "$RANGE"
+            echo
+            echo
+            echo "Full diff: https://github.com/${GITHUB_REPOSITORY}/compare/${PREV:-$(git rev-list --max-parents=0 "$TAG" | tail -1)}...${TAG}"
+          } > RELEASE_NOTES.md
+          echo "----- release notes -----"
+          cat RELEASE_NOTES.md
       - uses: actions/download-artifact@v4
-        with: { path: artifacts }
+        continue-on-error: true
+        with:
+          path: artifacts
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          name: Codify ${{ github.ref_name }}
+          body_path: RELEASE_NOTES.md
           files: artifacts/**/*
-          generate_release_notes: true
+          fail_on_unmatched_files: false
