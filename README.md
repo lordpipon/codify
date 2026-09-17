@@ -1,8 +1,30 @@
 # Codify
 
+**v0.1.0**
+
 A fast, minimal IDE built on **Rust + GPUI** — the same GPU-accelerated UI engine that powers Zed.
 
 No Electron, no web tech. It's a native desktop app, built to be *yours*.
+
+[![release](https://img.shields.io/github/v/release/lordpipon/codify?include_prereleases&sort=semver)](https://github.com/lordpipon/codify/releases)
+[![license](https://img.shields.io/github/license/lordpipon/codify)](LICENSE)
+
+## Download
+
+Grab the latest build from [**GitHub Releases**](https://github.com/lordpipon/codify/releases/latest):
+
+| Platform | Package |
+|----------|---------|
+| **Windows** | `Codify-Setup-0.1.0.exe` (Inno) · `Codify-0.1.0.msi` (WiX) |
+| **macOS** | `Codify-0.1.0.dmg` |
+| **Linux (Debian/Ubuntu)** | `codify_0.1.0-1_amd64.deb` |
+| **Linux (Fedora/RHEL)** | `codify-0.1.0-1.x86_64.rpm` |
+| **Arch Linux** | `codify-0.1.0-1-x86_64.pkg.tar.zst` |
+| **Flatpak** | `codify.flatpak` |
+| **Source** | `codify-0.1.0-source.tar.gz` |
+
+Releases are published automatically by CI (`.github/workflows/release.yml`) when a `v*` tag is pushed, with a changelog of what changed.
+
 
 ## Features
 
@@ -66,10 +88,27 @@ Prebuilt installers are produced by CI (`GitHub Actions`) on tagged releases:
 - **Windows** — `.exe` (Inno Setup) / `.msi` (WiX)
 - **Linux** — `.deb` and `.rpm`
 - **Flatpak** — `org.codify.Codify` (Flathub build)
-- **Arch** — `PKGBUILD` in `packaging/linux/` (build from source)
+- **Arch** — `codify-<version>-x86_64.pkg.tar.zst` built in an Arch container, plus the `PKGBUILD` in `packaging/linux/`
 - **Sources** — alongside every release
 
 No logos are embedded in any installer — just the name **Codify**.
+
+## Releases & versioning
+
+Versioning follows [SemVer](https://semver.org/), tracked in `Cargo.toml` and tagged as `vMAJOR.MINOR.PATCH`.
+
+To cut a release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The workflow builds every package, then creates a GitHub Release titled `Codify v0.1.0` with:
+
+- a generated changelog (what changed since the previous release)
+- the versioned installers listed above attached as assets
+
 
 ## Packaging pieces
 
@@ -85,7 +124,7 @@ packaging/
 ```
 src/
   main.rs         entry point, keybindings, window options
-  app.rs          window shell: title bar, sidebar, editor, terminal, settings panel
+  app.rs          window shell: title bar, tab bar, breadcrumb, explorer, editor, terminal, status bar, settings + extension panels
   explorer.rs     file-tree view
   editor.rs       custom GPUI element: rendering, cursor, selection, input
   language.rs     tokenizer / syntax highlighting + dynamic-language hooks
