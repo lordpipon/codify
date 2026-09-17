@@ -1,6 +1,6 @@
 [package]
 name = "codify"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Codify — a fast, minimal IDE built with GPUI (Zed's engine)"
 authors = ["lordpipon"]
