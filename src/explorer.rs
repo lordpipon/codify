@@ -1,9 +1,29 @@
+use std::path::Path;
 use std::path::PathBuf;
 
 use gpui::{Context, Entity, FontWeight, Render, SharedString, Window, div, prelude::*, px};
 
 use crate::editor::Editor;
 use crate::theme;
+
+/// Read the current git branch for a directory, walking upwards to find `.git`.
+pub fn git_branch(start: &Path) -> Option<String> {
+    let mut dir = Some(start);
+    while let Some(current) = dir {
+        let head_path = current.join(".git").join("HEAD");
+        if let Ok(head) = std::fs::read_to_string(&head_path) {
+            let head = head.trim();
+            if let Some(rest) = head.strip_prefix("ref: refs/heads/") {
+                return Some(rest.to_string());
+            }
+            if head.len() >= 7 {
+                return Some(head[..7].to_string());
+            }
+        }
+        dir = current.parent();
+    }
+    None
+}
 
 struct FileNode {
     name: String,
@@ -25,7 +45,7 @@ fn read_children(path: &PathBuf, depth: usize) -> Vec<FileNode> {
     if let Ok(read_dir) = std::fs::read_dir(path) {
         for entry in read_dir.flatten() {
             let file_name = entry.file_name().to_string_lossy().to_string();
-            if file_name.starts_with('.') || file_name == "node_modules" || file_name == "target" {
+            if file_name == ".git" || file_name == "node_modules" || file_name == "target" {
                 continue;
             }
             let file_type = entry.file_type().ok();
@@ -80,6 +100,19 @@ impl FileTree {
         }
     }
 
+    pub fn root(&self) -> Option<PathBuf> {
+        self.root.clone()
+    }
+
+    pub fn root_name(&self) -> SharedString {
+        self.root
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .map(|n| SharedString::from(n.to_string()))
+            .unwrap_or_else(|| SharedString::from("No folder open"))
+    }
+
     fn activate(&mut self, index: usize, cx: &mut Context<Self>) {
         if index >= self.nodes.len() {
             return;
@@ -116,13 +149,8 @@ impl FileTree {
 
 impl Render for FileTree {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        let root_label = self
-            .root
-            .as_ref()
-            .and_then(|p| p.file_name())
-            .and_then(|n| n.to_str())
-            .unwrap_or("No folder open")
-            .to_uppercase();
+        let root_name = self.root_name();
+        let branch = self.root.as_ref().and_then(|r| git_branch(r));
 
         let rows: Vec<_> = self
             .nodes
@@ -185,29 +213,48 @@ impl Render for FileTree {
             .child(
                 div()
                     .flex()
-                    .flex_row()
-                    .items_center()
-                    .justify_between()
+                    .flex_col()
+                    .gap_1()
                     .px_3()
                     .py_2()
                     .border_b_1()
                     .border_color(theme::color(theme::BG_DARKER))
-                    .text_xs()
-                    .font_weight(FontWeight::BOLD)
-                    .text_color(theme::color(theme::FAINT))
-                    .child(SharedString::from(root_label))
                     .child(
                         div()
-                            .id("refresh-btn")
-                            .px_1()
-                            .rounded_sm()
-                            .cursor_pointer()
-                            .hover(|style| style.bg(theme::color(theme::SURFACE)))
-                            .child("\u{21bb}")
-                            .on_click(cx.listener(|this, _event, _window, cx| {
-                                this.refresh(cx);
-                            })),
-                    ),
+                            .flex()
+                            .flex_row()
+                            .items_center()
+                            .justify_between()
+                            .text_sm()
+                            .font_weight(FontWeight::BOLD)
+                            .text_color(theme::color(theme::TEXT))
+                            .child(root_name)
+                            .child(
+                                div()
+                                    .id("refresh-btn")
+                                    .px_1()
+                                    .rounded_sm()
+                                    .cursor_pointer()
+                                    .hover(|style| style.bg(theme::color(theme::SURFACE)))
+                                    .child("\u{21bb}")
+                                    .on_click(cx.listener(|this, _event, _window, cx| {
+                                        this.refresh(cx);
+                                    })),
+                            ),
+                    )
+                    .when_some(branch, |header, branch| {
+                        header.child(
+                            div()
+                                .flex()
+                                .flex_row()
+                                .items_center()
+                                .gap_1()
+                                .text_xs()
+                                .text_color(theme::color(theme::FAINT))
+                                .child("\u{2387}")
+                                .child(SharedString::from(branch)),
+                        )
+                    }),
             )
             .child(
                 div()

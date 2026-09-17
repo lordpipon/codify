@@ -6,11 +6,13 @@ No Electron, no web tech. It's a native desktop app, built to be *yours*.
 
 ## Features
 
-- **File explorer** — browse and open any directory (expand/collapse folders)
+- **File explorer** — browse and open any directory (expand/collapse folders), with the project name and current **git branch** in the header
+- **Tabbed editor** — multiple open files with dirty indicators, plus **back/forward** navigation and a breadcrumb path bar
 - **Code editor** — cursor, selection, multiline editing, line-number gutter, mouse hit-testing
+- **Status bar** — live cursor position (`line:col`), active language, and git branch
 - **Syntax highlighting** for Rust, Python, JavaScript/TypeScript, C, C++, C#, Java, Go, Ruby, PHP, Swift, Kotlin, Lua, Perl, R, Scala, Haskell, Elixir, Dart, SQL, HTML/XML, Vue, Svelte (with `<script>`/`<style>` blocks), CSS, JSON, YAML, TOML, Shell, Dockerfile, Makefile, Markdown — and plain text
 - **Extension store** — a Zed-style extension panel (▦ button in the title bar) with one-click install/uninstall. Languages are data-driven: installed extensions plug new languages straight into the tokenizer. Ships with Zig, Nim, Groovy, Crystal, Racket, Nix, and Julia
-- **Integrated terminal** — a real PTY (via `portable-pty`), auto-detects your shell:
+- **Integrated terminal** — a real PTY (via `portable-pty`) with a session header (`<project> — <shell>`) and pane controls (new / split / zoom / close), auto-detecting your shell:
   - Windows → PowerShell (`pwsh` → `powershell`) → `cmd`
   - macOS → `$SHELL` (zsh) → `/bin/zsh` → `/bin/bash`
   - Linux → `$SHELL` → `bash` → `sh`
@@ -29,6 +31,17 @@ No Electron, no web tech. It's a native desktop app, built to be *yours*.
 | `Ctrl+Q`        | Quit              |
 | `Tab` / arrows  | Indent / navigate |
 | `Shift+arrows`  | Extend selection  |
+
+## Layout
+
+```
+┌ Codify ───────────────┬ tabs · breadcrumb ─────────┐
+│ explorer + git branch │  editor                     │
+│                       ├ terminal (can — zsh) + pane │
+├───────────────────────┴─────────────────────────────┤
+│ status: cursor 18:1 · C · main                      │
+└─────────────────────────────────────────────────────┘
+```
 
 ## Building from source
 

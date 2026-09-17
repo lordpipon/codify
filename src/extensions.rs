@@ -231,6 +231,16 @@ pub fn refresh() {
     set_dynamic_languages(langs);
 }
 
+/// Human name of an installed dynamic language by id.
+pub fn dynamic_name(id: &str) -> Option<String> {
+    DYNAMIC
+        .read()
+        .unwrap()
+        .iter()
+        .find(|l| l.id == id)
+        .map(|l| l.name.clone())
+}
+
 /// Look up an installed extension language for the given file path.
 pub fn dynamic_language_for_path(path: &Path) -> Option<DynamicLang> {
     let ext = path

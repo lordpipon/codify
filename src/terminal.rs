@@ -56,12 +56,15 @@ impl Terminal {
         }
     }
 
+    pub fn shell_name(&self) -> &str {
+        &self.shell_name
+    }
+
     pub fn start(&mut self, cx: &mut Context<Self>) {
         if self.started {
             return;
         }
         self.started = true;
-
         let pty_system = native_pty_system();
         let pair = match pty_system.openpty(PtySize {
             rows: 24,

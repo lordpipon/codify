@@ -120,12 +120,53 @@ struct HitTest {
     lines: Vec<HitLine>,
 }
 
+/// A snapshot of one open buffer, so the shell can render tabs and swap
+/// buffers in and out of the single editor surface.
+#[derive(Clone)]
+pub struct DocState {
+    pub path: Option<PathBuf>,
+    pub text: String,
+    pub language: Language,
+    pub dynamic_id: Option<String>,
+    pub selected_range: Range<usize>,
+    pub selection_reversed: bool,
+    pub scroll: usize,
+    pub dirty: bool,
+    pub status: SharedString,
+}
+
+impl DocState {
+    pub fn empty() -> Self {
+        Self {
+            path: None,
+            text: String::new(),
+            language: Language::Plain,
+            dynamic_id: None,
+            selected_range: 0..0,
+            selection_reversed: false,
+            scroll: 0,
+            dirty: false,
+            status: SharedString::from(""),
+        }
+    }
+
+    pub fn file_name(&self) -> SharedString {
+        self.path
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(|n| n.to_str())
+            .map(|n| SharedString::from(n.to_string()))
+            .unwrap_or_else(|| SharedString::from("untitled"))
+    }
+}
+
 pub struct Editor {
     focus_handle: FocusHandle,
     path: Option<PathBuf>,
     text: String,
     language: Language,
     dynamic_id: Option<String>,
+    open_id: u64,
     selected_range: Range<usize>,
     selection_reversed: bool,
     marked_range: Option<Range<usize>>,
@@ -144,6 +185,7 @@ impl Editor {
             text: String::new(),
             language: Language::Plain,
             dynamic_id: None,
+            open_id: 0,
             selected_range: 0..0,
             selection_reversed: false,
             marked_range: None,
@@ -169,6 +211,62 @@ impl Editor {
         }
     }
 
+    /// Monotonic counter bumped every time a file is opened. The shell observes
+    /// the editor and uses this to notice new opens (vs. ordinary edits).
+    pub fn open_id(&self) -> u64 {
+        self.open_id
+    }
+
+    /// A human label for the active language, e.g. `C`, `Rust`, `Zig`.
+    pub fn language_label(&self) -> SharedString {
+        if self.language == Language::Custom
+            && let Some(id) = self.dynamic_id.as_deref()
+            && let Some(name) = crate::extensions::dynamic_name(id)
+        {
+            return SharedString::from(name);
+        }
+        SharedString::from(self.language.name())
+    }
+
+    /// 1-based (line, column) of the cursor.
+    pub fn cursor_line_col(&self) -> (usize, usize) {
+        let offset = self.cursor().min(self.text.len());
+        let before = &self.text[..offset];
+        let line = before.matches('\n').count() + 1;
+        let col = before.rfind('\n').map(|i| offset - i).unwrap_or(offset + 1);
+        (line, col)
+    }
+
+    /// Snapshot of the active buffer, used by the tab bar.
+    pub fn save_state(&self) -> DocState {
+        DocState {
+            path: self.path.clone(),
+            text: self.text.clone(),
+            language: self.language,
+            dynamic_id: self.dynamic_id.clone(),
+            selected_range: self.selected_range.clone(),
+            selection_reversed: self.selection_reversed,
+            scroll: self.scroll,
+            dirty: self.dirty,
+            status: self.status.clone(),
+        }
+    }
+
+    /// Replace the active buffer with a previously saved snapshot.
+    pub fn load_state(&mut self, state: DocState, cx: &mut Context<Self>) {
+        self.path = state.path;
+        self.text = state.text;
+        self.language = state.language;
+        self.dynamic_id = state.dynamic_id;
+        self.selected_range = state.selected_range;
+        self.selection_reversed = state.selection_reversed;
+        self.scroll = state.scroll;
+        self.dirty = state.dirty;
+        self.status = state.status;
+        self.hit = None;
+        cx.notify();
+    }
+
     pub fn open_file(&mut self, path: PathBuf, cx: &mut Context<Self>) {
         match std::fs::read_to_string(&path) {
             Ok(contents) => {
@@ -181,6 +279,7 @@ impl Editor {
                 }
                 self.text = contents;
                 self.path = Some(path);
+                self.open_id = self.open_id.wrapping_add(1);
                 self.selected_range = 0..0;
                 self.selection_reversed = false;
                 self.scroll = 0;

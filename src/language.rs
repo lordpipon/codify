@@ -60,6 +60,48 @@ pub enum Language {
     Custom,
 }
 
+impl Language {
+    /// Short human label for the status bar, e.g. `C`, `Rust`, `Zig`.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Language::Rust => "Rust",
+            Language::Python => "Python",
+            Language::JavaScript => "JavaScript",
+            Language::TypeScript => "TypeScript",
+            Language::Html => "HTML",
+            Language::Css => "CSS",
+            Language::Json => "JSON",
+            Language::Markdown => "Markdown",
+            Language::Shell => "Shell",
+            Language::Toml => "TOML",
+            Language::C => "C",
+            Language::Cpp => "C++",
+            Language::CSharp => "C#",
+            Language::Java => "Java",
+            Language::Go => "Go",
+            Language::Ruby => "Ruby",
+            Language::Php => "PHP",
+            Language::Swift => "Swift",
+            Language::Kotlin => "Kotlin",
+            Language::Lua => "Lua",
+            Language::Perl => "Perl",
+            Language::R => "R",
+            Language::Scala => "Scala",
+            Language::Haskell => "Haskell",
+            Language::Elixir => "Elixir",
+            Language::Dart => "Dart",
+            Language::Sql => "SQL",
+            Language::Yaml => "YAML",
+            Language::Xml => "XML",
+            Language::Svelte => "Svelte",
+            Language::Vue => "Vue",
+            Language::Dockerfile => "Dockerfile",
+            Language::Makefile => "Makefile",
+            Language::Plain | Language::Custom => "Plain Text",
+        }
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum TokenKind {
     Plain,
