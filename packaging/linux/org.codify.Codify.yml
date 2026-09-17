@@ -2,6 +2,8 @@ id: org.codify.Codify
 runtime: org.freedesktop.Platform
 runtime-version: '24.08'
 sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 command: codify
 
 finish-args:
@@ -26,6 +28,8 @@ modules:
         - --share=network
       env:
         - RUSTFLAGS=--remap-path-prefix=/app=/usr
+        - CARGO_HOME=/run/build/codify/cargo
+        - PATH=/usr/lib/sdk/rust-stable/bin:/app/bin:/usr/bin
     sources:
       - type: dir
         path: ../..

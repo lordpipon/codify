@@ -137,6 +137,8 @@ jobs:
         id: v
         shell: bash
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - name: xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: dist/codify-${{ steps.v.outputs.version }}.flatpak

@@ -26,3 +26,15 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 codegen-units = 1
+
+[package.metadata.generate-rpm]
+name = "codify"
+summary = "A fast, minimal IDE built with GPUI"
+license = "MIT"
+url = "https://github.com/lordpipon/codify"
+assets = [
+  { source = "target/release/codify", dest = "/usr/bin/codify", mode = "755" },
+  { source = "packaging/linux/codify.desktop", dest = "/usr/share/applications/org.codify.Codify.desktop", mode = "644" },
+  { source = "LICENSE", dest = "/usr/share/licenses/codify/LICENSE", mode = "644" },
+  { source = "README.md", dest = "/usr/share/doc/codify/README.md", mode = "644" },
+]
