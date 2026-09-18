@@ -28,12 +28,17 @@ cargo build --release --locked
 %install
 install -Dm755 %{_builddir}/%{name}-%{version}/target/release/codify %{buildroot}%{_bindir}/codify
 install -Dm644 %{_builddir}/%{name}-%{version}/packaging/linux/codify.desktop %{buildroot}%{_datadir}/applications/org.codify.Codify.desktop
+for s in 16 24 32 48 64 128 256 512 1024; do
+  install -Dm644 %{_builddir}/%{name}-%{version}/packaging/linux/icons/hicolor/${s}x${s}/apps/org.codify.Codify.png \
+    %{buildroot}%{_datadir}/icons/hicolor/${s}x${s}/apps/org.codify.Codify.png
+done
 mkdir -p %{buildroot}%{_datadir}/licenses/%{name}
 cp %{_builddir}/%{name}-%{version}/LICENSE %{buildroot}%{_datadir}/licenses/%{name}/LICENSE
 
 %files
 %{_bindir}/codify
 %{_datadir}/applications/org.codify.Codify.desktop
+%{_datadir}/icons/hicolor/*/apps/org.codify.Codify.png
 %{_datadir}/licenses/%{name}/LICENSE
 
 %changelog

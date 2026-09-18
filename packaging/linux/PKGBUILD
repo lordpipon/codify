@@ -38,4 +38,9 @@ package() {
   install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 packaging/linux/codify.desktop "$pkgdir/usr/share/applications/org.codify.Codify.desktop"
+  for size in 16 24 32 48 64 128 256 512 1024; do
+    install -Dm644 \
+      "packaging/linux/icons/hicolor/${size}x${size}/apps/org.codify.Codify.png" \
+      "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/org.codify.Codify.png"
+  done
 }

@@ -8,6 +8,8 @@
            Manufacturer="lordpipon"
            UpgradeCode="7D4E1A2B-3C5D-4E6F-8A9B-0C1D2E3F4051">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perMachine" />
+    <Icon Id="appicon" SourceFile="packaging/windows/codify.ico" />
+    <Property Id="ARPPRODUCTICON" Value="appicon" />
     <MajorUpgrade DowngradeErrorMessage="A newer version of Codify is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
@@ -26,7 +28,8 @@
                       Name="Codify"
                       Description="Codify - a fast, minimal IDE"
                       Target="[INSTALLFOLDER]codify.exe"
-                      WorkingDirectory="INSTALLFOLDER" />
+                      WorkingDirectory="INSTALLFOLDER"
+                      Icon="appicon" />
             <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
             <RegistryValue Root="HKCU" Key="Software\Codify" Name="installed" Type="integer" Value="1" KeyPath="yes" />
           </Component>

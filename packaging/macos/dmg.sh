@@ -22,6 +22,7 @@ echo "==> assembling .app bundle"
 rm -rf "$APP_DIR"
 mkdir -p "$APP_DIR/Contents/MacOS" "$APP_DIR/Contents/Resources"
 cp "target/release/$BIN_NAME" "$APP_DIR/Contents/MacOS/$BIN_NAME"
+cp "packaging/macos/codify.icns" "$APP_DIR/Contents/Resources/codify.icns"
 
 cat > "$APP_DIR/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,6 +37,8 @@ cat > "$APP_DIR/Contents/Info.plist" <<PLIST
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>LSMinimumSystemVersion</key><string>11.0</string>
+  <key>CFBundleIconFile</key><string>codify</string>
+  <key>CFBundleIconName</key><string>codify</string>
 </dict>
 </plist>
 PLIST

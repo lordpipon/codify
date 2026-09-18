@@ -35,6 +35,32 @@ url = "https://github.com/lordpipon/codify"
 assets = [
   { source = "target/release/codify", dest = "/usr/bin/codify", mode = "755" },
   { source = "packaging/linux/codify.desktop", dest = "/usr/share/applications/org.codify.Codify.desktop", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/512x512/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/256x256/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/48x48/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/32x32/apps/org.codify.Codify.png", mode = "644" },
+  { source = "LICENSE", dest = "/usr/share/licenses/codify/LICENSE", mode = "644" },
+  { source = "README.md", dest = "/usr/share/doc/codify/README.md", mode = "644" },
+]
+
+[package.metadata.deb]
+name = "codify"
+maintainer = "lordpipon <126490646+lordpipon@users.noreply.github.com>"
+copyright = "2026, lordpipon"
+license-file = ["packaging/linux/LICENSE", "2"]
+extended-description = "A fast, minimal IDE built with GPUI (Zed's engine)."
+assets = [
+  { source = "target/release/codify", dest = "/usr/bin/codify", mode = "755" },
+  { source = "packaging/linux/codify.desktop", dest = "/usr/share/applications/org.codify.Codify.desktop", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/512x512/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/256x256/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/128x128/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/64x64/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/48x48/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/32x32/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/24x24/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/16x16/apps/org.codify.Codify.png", mode = "644" },
+  { source = "packaging/icons/source.png", dest = "/usr/share/icons/hicolor/1024x1024/apps/org.codify.Codify.png", mode = "644" },
   { source = "LICENSE", dest = "/usr/share/licenses/codify/LICENSE", mode = "644" },
   { source = "README.md", dest = "/usr/share/doc/codify/README.md", mode = "644" },
 ]
