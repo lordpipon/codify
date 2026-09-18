@@ -21,14 +21,14 @@ modules:
       - cargo build --release --locked
       - install -Dm755 target/release/codify /app/bin/codify
       - install -Dm644 packaging/linux/codify.desktop /app/share/applications/org.codify.Codify.desktop
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/512x512/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/256x256/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/128x128/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/64x64/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/48x48/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/32x32/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/24x24/apps/org.codify.Codify.png
-      - install -Dm644 packaging/icons/source.png /app/share/icons/hicolor/16x16/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/512.png /app/share/icons/hicolor/512x512/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/256.png /app/share/icons/hicolor/256x256/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/128.png /app/share/icons/hicolor/128x128/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/64.png /app/share/icons/hicolor/64x64/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/48.png /app/share/icons/hicolor/48x48/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/32.png /app/share/icons/hicolor/32x32/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/24.png /app/share/icons/hicolor/24x24/apps/org.codify.Codify.png
+      - install -Dm644 packaging/icons/hicolor/16.png /app/share/icons/hicolor/16x16/apps/org.codify.Codify.png
       - install -Dm644 LICENSE /app/share/licenses/codify/LICENSE
       - install -Dm644 README.md /app/share/doc/codify/README.md
     build-options:
