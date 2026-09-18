@@ -522,6 +522,12 @@ impl Editor {
     }
 
     fn save(&mut self, _: &Save, _: &mut Window, cx: &mut Context<Self>) {
+        self.save_now(cx);
+    }
+
+    /// Write the active buffer to disk (used by both the keybinding and the
+    /// status-bar save button).
+    pub fn save_now(&mut self, cx: &mut Context<Self>) {
         if let Some(path) = self.path.clone() {
             match std::fs::write(&path, &self.text) {
                 Ok(_) => {

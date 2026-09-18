@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use gpui::{
-    App, Context, CursorStyle, Entity, FocusHandle, Focusable, FontWeight, MouseButton, Render,
-    ResizeEdge, SharedString, Window, div, prelude::*, px,
+    App, Context, CursorStyle, Entity, FocusHandle, Focusable, FontWeight, KeyDownEvent, MouseButton,
+    Render, ResizeEdge, SharedString, Window, div, prelude::*, px,
 };
 
 use crate::editor::{DocState, Editor};
@@ -15,9 +15,14 @@ pub struct RootView {
     explorer: Entity<FileTree>,
     editor: Entity<Editor>,
     terminal: Entity<Terminal>,
+    terminal2: Entity<Terminal>,
     focus_handle: FocusHandle,
+    search_focus: FocusHandle,
     settings_open: bool,
     extensions_open: bool,
+    about_open: bool,
+    search_open: bool,
+    search_query: String,
     tabs: Vec<DocState>,
     active_tab: usize,
     last_open_id: u64,
@@ -25,6 +30,8 @@ pub struct RootView {
     nav_pos: usize,
     terminal_open: bool,
     terminal_zoom: bool,
+    terminal_split: bool,
+    terminal2_started: bool,
 }
 
 const TITLEBAR_H: f32 = 38.0;
@@ -51,6 +58,7 @@ impl RootView {
         let explorer = cx.new(|cx| FileTree::new(editor.clone(), cx));
         let terminal = cx.new(Terminal::new);
         terminal.update(cx, |terminal, cx| terminal.start(cx));
+        let terminal2 = cx.new(Terminal::new);
 
         cx.observe(&editor, |this, editor, cx| {
             let (open_id, state) = {
@@ -76,9 +84,14 @@ impl RootView {
             explorer,
             editor,
             terminal,
+            terminal2,
             focus_handle: cx.focus_handle(),
+            search_focus: cx.focus_handle(),
             settings_open: false,
             extensions_open: false,
+            about_open: false,
+            search_open: false,
+            search_query: String::new(),
             tabs: vec![DocState::empty()],
             active_tab: 0,
             last_open_id: 0,
@@ -86,6 +99,8 @@ impl RootView {
             nav_pos: 0,
             terminal_open: true,
             terminal_zoom: false,
+            terminal_split: false,
+            terminal2_started: false,
         }
     }
 
@@ -126,6 +141,153 @@ impl RootView {
     fn toggle_terminal_zoom(&mut self, cx: &mut Context<Self>) {
         self.terminal_zoom = !self.terminal_zoom;
         cx.notify();
+    }
+
+    fn toggle_about(&mut self, cx: &mut Context<Self>) {
+        self.about_open = !self.about_open;
+        self.settings_open = false;
+        self.extensions_open = false;
+        self.search_open = false;
+        cx.notify();
+    }
+
+    fn toggle_terminal_split(&mut self, cx: &mut Context<Self>) {
+        self.terminal_split = !self.terminal_split;
+        if self.terminal_split && !self.terminal2_started {
+            self.terminal2.update(cx, |terminal, cx| terminal.start(cx));
+            self.terminal2_started = true;
+        }
+        if self.terminal_split {
+            self.terminal_open = true;
+        }
+        cx.notify();
+    }
+
+    fn new_terminal(&mut self, cx: &mut Context<Self>) {
+        self.terminal.update(cx, |terminal, cx| terminal.restart(cx));
+    }
+
+    fn save_active(&mut self, cx: &mut Context<Self>) {
+        self.editor.update(cx, |editor, cx| editor.save_now(cx));
+    }
+
+    /// Run the project in the integrated terminal, picking a sensible command
+    /// from the project root.
+    fn run_project(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.terminal_open = true;
+        let handle = self.terminal.read(cx).focus_handle(cx);
+        window.focus(&handle);
+        let command = self.run_command(cx);
+        self.terminal
+            .update(cx, |terminal, cx| terminal.send_command(&command, cx));
+    }
+
+    fn run_command(&self, cx: &App) -> String {
+        if let Some(root) = self.explorer.read(cx).root() {
+            if root.join("Cargo.toml").is_file() {
+                return "cargo run".to_string();
+            }
+            if root.join("package.json").is_file() {
+                return "npm start".to_string();
+            }
+            if root.join("go.mod").is_file() {
+                return "go run .".to_string();
+            }
+            if root.join("Makefile").is_file() {
+                return "make".to_string();
+            }
+        }
+        "ls".to_string()
+    }
+
+    // ── Quick open (file search) ──────────────────────────────────
+
+    fn open_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = true;
+        self.search_query.clear();
+        self.settings_open = false;
+        self.extensions_open = false;
+        self.about_open = false;
+        window.focus(&self.search_focus);
+        cx.notify();
+    }
+
+    fn close_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = false;
+        self.focus_editor(window, cx);
+        cx.notify();
+    }
+
+    fn on_search_key(
+        &mut self,
+        event: &KeyDownEvent,
+        window: &mut Window,
+        cx: &mut Context<Self>,
+    ) {
+        match event.keystroke.key.as_str() {
+            "escape" => {
+                self.close_search(window, cx);
+                return;
+            }
+            "backspace" => {
+                self.search_query.pop();
+            }
+            "enter" => {
+                let results = self.search_results(cx);
+                if let Some(path) = results.into_iter().next() {
+                    self.open_search_path(path, window, cx);
+                    return;
+                }
+            }
+            _ => {
+                if !event.keystroke.modifiers.control
+                    && !event.keystroke.modifiers.platform
+                    && let Some(ch) = event.keystroke.key_char.as_deref()
+                    && !ch.is_empty()
+                {
+                    self.search_query.push_str(ch);
+                }
+            }
+        }
+        cx.notify();
+    }
+
+    fn open_search_path(&mut self, path: PathBuf, window: &mut Window, cx: &mut Context<Self>) {
+        self.search_open = false;
+        self.editor.update(cx, |editor, cx| editor.open_file(path, cx));
+        self.focus_editor(window, cx);
+        cx.notify();
+    }
+
+    fn search_results(&self, cx: &App) -> Vec<PathBuf> {
+        let Some(root) = self.explorer.read(cx).root() else {
+            return Vec::new();
+        };
+        let query = self.search_query.to_lowercase();
+        let mut files = Vec::new();
+        collect_files(&root, 0, &mut files, 4000);
+        let mut results: Vec<PathBuf> = files
+            .into_iter()
+            .filter(|path| {
+                if query.is_empty() {
+                    return true;
+                }
+                let rel = path
+                    .strip_prefix(&root)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .to_lowercase();
+                rel.contains(&query)
+            })
+            .collect();
+        results.sort_by_key(|path| {
+            path.strip_prefix(&root)
+                .unwrap_or(path)
+                .to_string_lossy()
+                .len()
+        });
+        results.truncate(60);
+        results
     }
 
     // ── Tabs & navigation ─────────────────────────────────────────
@@ -297,7 +459,7 @@ fn icon_button(
 ) -> gpui::Stateful<gpui::Div> {
     div()
         .id(id)
-        .w(px(24.0))
+        .w(px(26.0))
         .h(px(22.0))
         .flex()
         .items_center()
@@ -310,9 +472,50 @@ fn icon_button(
         } else {
             theme::color(theme::SURFACE_HI)
         })
-        .hover(move |s| s.bg(theme::color(theme::SURFACE)))
+        .hover(move |s| {
+            s.bg(accent.opacity(0.10)).text_color(if enabled {
+                accent
+            } else {
+                theme::color(theme::FAINT)
+            })
+        })
+        .active(move |s| {
+            s.bg(accent.opacity(0.22)).text_color(if enabled {
+                accent
+            } else {
+                theme::color(theme::FAINT)
+            })
+        })
         .child(glyph)
-        .when(enabled, |el| el.hover(move |s| s.text_color(accent)))
+}
+
+/// Recursively collect files under `dir` for the quick-open list, skipping
+/// heavy/generated directories and capping the walk.
+fn collect_files(dir: &Path, depth: usize, out: &mut Vec<PathBuf>, limit: usize) {
+    if depth > 8 || out.len() >= limit {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name == ".git" || name == "target" || name == "node_modules" {
+            continue;
+        }
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        let path = entry.path();
+        if file_type.is_dir() {
+            collect_files(&path, depth + 1, out, limit);
+        } else {
+            out.push(path);
+        }
+        if out.len() >= limit {
+            return;
+        }
+    }
 }
 
 fn breadcrumb_parts(root: Option<&PathBuf>, path: Option<&PathBuf>) -> Vec<String> {
@@ -337,11 +540,30 @@ impl Render for RootView {
         let root = self.explorer.read(cx).root();
         let root_name = self.explorer.read(cx).root_name();
         let shell = self.terminal.read(cx).shell_name().to_string();
+        let terminal_running = self.terminal.read(cx).is_running();
         let branch = root.as_ref().and_then(|r| crate::explorer::git_branch(r));
         let (cursor_line, cursor_col) = self.editor.read(cx).cursor_line_col();
         let language = self.editor.read(cx).language_label();
         let active_path = self.tabs.get(self.active_tab).and_then(|t| t.path.clone());
         let crumbs = breadcrumb_parts(root.as_ref(), active_path.as_ref());
+
+        // Quick-open rows (path + display string), computed only when open.
+        let search_rows: Vec<(PathBuf, String)> = if self.search_open {
+            self.search_results(cx)
+                .into_iter()
+                .map(|path| {
+                    let display = root
+                        .as_ref()
+                        .and_then(|r| path.strip_prefix(r).ok())
+                        .unwrap_or(&path)
+                        .to_string_lossy()
+                        .to_string();
+                    (path, display)
+                })
+                .collect()
+        } else {
+            Vec::new()
+        };
 
         let can_back = self.nav_pos > 0;
         let can_forward = self.nav_pos + 1 < self.nav_history.len();
@@ -417,11 +639,41 @@ impl Render for RootView {
             .flex_row()
             .items_center()
             .gap_1()
-            .child(icon_button("status-gear", "\u{2699}", true, accent))
-            .child(icon_button("status-term", "\u{25a3}", true, accent))
-            .child(icon_button("status-search", "\u{2315}", true, accent))
-            .child(icon_button("status-zoom", "\u{26f6}", true, accent))
-            .child(icon_button("status-check", "\u{2713}", true, accent));
+            .child(
+                icon_button("status-gear", "\u{2699}", true, accent).on_click(cx.listener(
+                    |this, _, window, cx| {
+                        this.toggle_settings(window, cx);
+                    },
+                )),
+            )
+            .child(
+                icon_button("status-term", "\u{25a3}", self.terminal_open, accent).on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.toggle_terminal(cx);
+                    }),
+                ),
+            )
+            .child(
+                icon_button("status-search", "\u{2315}", true, accent).on_click(cx.listener(
+                    |this, _, window, cx| {
+                        this.open_search(window, cx);
+                    },
+                )),
+            )
+            .child(
+                icon_button("status-zoom", "\u{26f6}", self.terminal_zoom, accent).on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.toggle_terminal_zoom(cx);
+                    }),
+                ),
+            )
+            .child(
+                icon_button("status-check", "\u{2713}", true, accent).on_click(cx.listener(
+                    |this, _, _, cx| {
+                        this.save_active(cx);
+                    },
+                )),
+            );
 
         let status_right = div()
             .flex()
@@ -453,8 +705,20 @@ impl Render for RootView {
                         .child(SharedString::from(branch)),
                 )
             })
-            .child(icon_button("status-debug", "\u{25b6}", true, accent))
-            .child(icon_button("status-split", "\u{25eb}", true, accent));
+            .child(
+                icon_button("status-debug", "\u{25b6}", true, accent).on_click(cx.listener(
+                    |this, _, window, cx| {
+                        this.run_project(window, cx);
+                    },
+                )),
+            )
+            .child(
+                icon_button("status-split", "\u{25eb}", self.terminal_split, accent).on_click(
+                    cx.listener(|this, _, _, cx| {
+                        this.toggle_terminal_split(cx);
+                    }),
+                ),
+            );
 
         div()
             .relative()
@@ -524,7 +788,13 @@ impl Render for RootView {
                             .on_mouse_down(MouseButton::Right, |_, _, cx| cx.stop_propagation())
 
                             // Search
-                            .child(icon_button("qa-search", "\u{2315}", true, accent))
+                            .child(
+                                icon_button("qa-search", "\u{2315}", true, accent).on_click(
+                                    cx.listener(|this, _, window, cx| {
+                                        this.open_search(window, cx);
+                                    }),
+                                ),
+                            )
 
                             // Panel toggle
                             .child(
@@ -535,7 +805,13 @@ impl Render for RootView {
                             )
 
                             // Info
-                            .child(icon_button("qa-info", "\u{24d8}", true, accent))
+                            .child(
+                                icon_button("qa-info", "i", true, accent).on_click(
+                                    cx.listener(|this, _, _, cx| {
+                                        this.toggle_about(cx);
+                                    }),
+                                ),
+                            )
 
                             // Extensions
                             .child(
@@ -544,7 +820,8 @@ impl Render for RootView {
                                     .px_2()
                                     .py_1()
                                     .rounded_md()
-                                    .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                    .hover(move |s| s.bg(accent.opacity(0.10)))
+                                    .active(move |s| s.bg(accent.opacity(0.22)))
                                     .cursor_pointer()
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_extensions(window, cx);
@@ -564,7 +841,8 @@ impl Render for RootView {
                                     .px_2()
                                     .py_1()
                                     .rounded_md()
-                                    .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                    .hover(move |s| s.bg(accent.opacity(0.10)))
+                                    .active(move |s| s.bg(accent.opacity(0.22)))
                                     .cursor_pointer()
                                     .on_click(cx.listener(|this, _, window, cx| {
                                         this.toggle_settings(window, cx);
@@ -581,15 +859,16 @@ impl Render for RootView {
                             .when(!IS_MACOS, |bar| {
                                 bar.child(
                                     div()
+                                        .id("win-min")
                                         .w(px(28.0))
                                         .h(px(24.0))
                                         .flex()
                                         .items_center()
                                         .justify_center()
                                         .rounded_md()
-                                        .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                        .hover(move |s| s.bg(accent.opacity(0.10)))
+                                        .active(move |s| s.bg(accent.opacity(0.22)))
                                         .cursor_pointer()
-                                        .id("win-min")
                                         .on_click(|_, window, _cx| window.minimize_window())
                                         .child(
                                             div()
@@ -600,15 +879,16 @@ impl Render for RootView {
                                 )
                                 .child(
                                     div()
+                                        .id("win-max")
                                         .w(px(28.0))
                                         .h(px(24.0))
                                         .flex()
                                         .items_center()
                                         .justify_center()
                                         .rounded_md()
-                                        .hover(|s| s.bg(theme::color(theme::SURFACE)))
+                                        .hover(move |s| s.bg(accent.opacity(0.10)))
+                                        .active(move |s| s.bg(accent.opacity(0.22)))
                                         .cursor_pointer()
-                                        .id("win-max")
                                         .on_click(|_, window, _cx| window.zoom_window())
                                         .child(
                                             div()
@@ -619,15 +899,16 @@ impl Render for RootView {
                                 )
                                 .child(
                                     div()
+                                        .id("win-close")
                                         .w(px(28.0))
                                         .h(px(24.0))
                                         .flex()
                                         .items_center()
                                         .justify_center()
                                         .rounded_md()
-                                        .hover(|s| s.bg(theme::color(theme::RED)))
+                                        .hover(move |s| s.bg(theme::color(theme::RED).opacity(0.9)))
+                                        .active(move |s| s.bg(theme::color(theme::RED)))
                                         .cursor_pointer()
-                                        .id("win-close")
                                         .on_click(|_, window, _cx| window.remove_window())
                                         .child(
                                             div()
@@ -818,7 +1099,11 @@ impl Render for RootView {
                                         .child(
                                             div()
                                                 .text_xs()
-                                                .text_color(theme::color(theme::GREEN))
+                                                .text_color(if terminal_running {
+                                                    theme::color(theme::GREEN)
+                                                } else {
+                                                    theme::color(theme::RED)
+                                                })
                                                 .child("\u{25cf}"),
                                         ),
                                 )
@@ -828,8 +1113,24 @@ impl Render for RootView {
                                         .flex_row()
                                         .items_center()
                                         .gap_1()
-                                        .child(icon_button("term-new", "+", true, accent))
-                                        .child(icon_button("term-split", "\u{2731}", true, accent))
+                                        .child(
+                                            icon_button("term-new", "+", true, accent).on_click(
+                                                cx.listener(|this, _, _, cx| {
+                                                    this.new_terminal(cx);
+                                                }),
+                                            ),
+                                        )
+                                        .child(
+                                            icon_button(
+                                                "term-split",
+                                                "\u{2731}",
+                                                self.terminal_split,
+                                                accent,
+                                            )
+                                            .on_click(cx.listener(|this, _, _, cx| {
+                                                this.toggle_terminal_split(cx);
+                                            })),
+                                        )
                                         .child(
                                             icon_button(
                                                 "term-zoom",
@@ -849,7 +1150,29 @@ impl Render for RootView {
                                         ),
                                 ),
                         )
-                        .child(div().flex_1().min_h(px(0.0)).child(self.terminal.clone())),
+                        .child(
+                            div()
+                                .flex()
+                                .flex_row()
+                                .flex_1()
+                                .min_h(px(0.0))
+                                .child(div().flex_1().min_w(px(0.0)).child(self.terminal.clone()))
+                                .when(self.terminal_split, |row| {
+                                    row.child(
+                                        div()
+                                            .w(px(1.0))
+                                            .h_full()
+                                            .flex_none()
+                                            .bg(theme::color(theme::BG)),
+                                    )
+                                    .child(
+                                        div()
+                                            .flex_1()
+                                            .min_w(px(0.0))
+                                            .child(self.terminal2.clone()),
+                                    )
+                                }),
+                        ),
                 )
             })
 
@@ -1101,6 +1424,325 @@ impl Render for RootView {
                         ),
                 )
             })
+
+            // === Quick open overlay ===
+            .when(self.search_open, |parent| {
+                let this = cx.entity();
+                parent.child(
+                    div()
+                        .id("search-overlay")
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                        .flex()
+                        .justify_center()
+                        .on_click(cx.listener(|this, _, window, cx| {
+                            this.close_search(window, cx);
+                        }))
+                        .child(
+                            div()
+                                .id("search-panel")
+                                .mt(px(TITLEBAR_H + 24.0))
+                                .w(px(560.0))
+                                .max_h(px(420.0))
+                                .flex()
+                                .flex_col()
+                                .rounded_lg()
+                                .bg(theme::color(theme::BG_DARK))
+                                .border_1()
+                                .border_color(theme::color(theme::SURFACE))
+                                .shadow_lg()
+                                .track_focus(&self.search_focus)
+                                .on_key_down(cx.listener(Self::on_search_key))
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .on_click(|_, _, cx| cx.stop_propagation())
+                                .child(
+                                    div()
+                                        .flex()
+                                        .flex_row()
+                                        .items_center()
+                                        .gap_2()
+                                        .px_3()
+                                        .py_2()
+                                        .border_b_1()
+                                        .border_color(theme::color(theme::SURFACE))
+                                        .child(
+                                            div()
+                                                .text_sm()
+                                                .text_color(accent)
+                                                .child("\u{2315}"),
+                                        )
+                                        .child(
+                                            div()
+                                                .flex_1()
+                                                .min_w(px(0.0))
+                                                .text_sm()
+                                                .text_color(if self.search_query.is_empty() {
+                                                    theme::color(theme::FAINT)
+                                                } else {
+                                                    theme::color(theme::TEXT)
+                                                })
+                                                .child(SharedString::from(if self.search_query
+                                                    .is_empty()
+                                                {
+                                                    "Search files by name\u{2026}".to_string()
+                                                } else {
+                                                    self.search_query.clone()
+                                                })),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("esc"),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("search-close")
+                                                .w(px(24.0))
+                                                .h(px(22.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_md()
+                                                .text_xs()
+                                                .cursor_pointer()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .hover(move |s| {
+                                                    s.bg(accent.opacity(0.10))
+                                                        .text_color(accent)
+                                                })
+                                                .active(move |s| {
+                                                    s.bg(accent.opacity(0.22))
+                                                        .text_color(accent)
+                                                })
+                                                .on_click(cx.listener(|this, _, window, cx| {
+                                                    this.close_search(window, cx);
+                                                }))
+                                                .child("\u{2715}"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .id("search-results")
+                                        .flex()
+                                        .flex_col()
+                                        .flex_1()
+                                        .min_h(px(0.0))
+                                        .overflow_y_scroll()
+                                        .p_1()
+                                        .children(search_rows.into_iter().enumerate().map(
+                                            |(id, (path, display))| {
+                                                let this = this.clone();
+                                                div()
+                                                    .id(("search-result", id))
+                                                    .flex()
+                                                    .flex_row()
+                                                    .items_center()
+                                                    .gap_2()
+                                                    .h(px(24.0))
+                                                    .px_2()
+                                                    .rounded_sm()
+                                                    .cursor_pointer()
+                                                    .hover(move |s| s.bg(accent.opacity(0.10)).text_color(accent))
+                                                    .on_click(move |_, window, cx: &mut App| {
+                                                        let path = path.clone();
+                                                        this.update(cx, |this, cx| {
+                                                            this.open_search_path(
+                                                                path, window, cx,
+                                                            );
+                                                        });
+                                                    })
+                                                    .child(
+                                                        div()
+                                                            .text_xs()
+                                                            .text_color(theme::color(
+                                                                theme::SUBTEXT,
+                                                            ))
+                                                            .child(SharedString::from(display)),
+                                                    )
+                                            },
+                                        )),
+                                ),
+                        ),
+                )
+            })
+
+            // === About overlay ===
+            .when(self.about_open, |parent| {
+                parent.child(
+                    div()
+                        .id("about-overlay")
+                        .absolute()
+                        .top_0()
+                        .left_0()
+                        .right_0()
+                        .bottom_0()
+                        .flex()
+                        .justify_center()
+                        .on_click(cx.listener(|this, _, _, cx| {
+                            this.toggle_about(cx);
+                        }))
+                        .child(
+                            div()
+                                .id("about-panel")
+                                .mt(px(TITLEBAR_H + 24.0))
+                                .w(px(420.0))
+                                .flex()
+                                .flex_col()
+                                .rounded_lg()
+                                .bg(theme::color(theme::BG_DARK))
+                                .border_1()
+                                .border_color(theme::color(theme::SURFACE))
+                                .shadow_lg()
+                                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                                .on_click(|_, _, cx| cx.stop_propagation())
+                                .child(
+                                    div()
+                                        .flex()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .px_4()
+                                        .py_3()
+                                        .border_b_1()
+                                        .border_color(theme::color(theme::SURFACE))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .child("ABOUT"),
+                                        )
+                                        .child(
+                                            div()
+                                                .id("about-close")
+                                                .w(px(24.0))
+                                                .h(px(22.0))
+                                                .flex()
+                                                .items_center()
+                                                .justify_center()
+                                                .rounded_md()
+                                                .text_xs()
+                                                .cursor_pointer()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .hover(move |s| {
+                                                    s.bg(accent.opacity(0.10))
+                                                        .text_color(accent)
+                                                })
+                                                .active(move |s| {
+                                                    s.bg(accent.opacity(0.22))
+                                                        .text_color(accent)
+                                                })
+                                                .on_click(cx.listener(|this, _, _, cx| {
+                                                    this.toggle_about(cx);
+                                                }))
+                                                .child("\u{2715}"),
+                                        ),
+                                )
+                                .child(div().flex().flex_row().gap_3().p_4().child(
+                                    div()
+                                        .w(px(48.0))
+                                        .h(px(48.0))
+                                        .flex_none()
+                                        .flex()
+                                        .items_center()
+                                        .justify_center()
+                                        .rounded_lg()
+                                        .bg(accent.opacity(0.15))
+                                        .child(
+                                            div()
+                                                .text_lg()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(accent)
+                                                .child("C"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_1()
+                                        .child(
+                                            div()
+                                                .text_lg()
+                                                .font_weight(FontWeight::BOLD)
+                                                .text_color(theme::color(theme::TEXT))
+                                                .child("Codify"),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::SUBTEXT))
+                                                .child(SharedString::from(format!(
+                                                    "Version {}",
+                                                    env!("CARGO_PKG_VERSION")
+                                                ))),
+                                        ),
+                                ))
+                                .child(
+                                    div()
+                                        .flex()
+                                        .flex_col()
+                                        .gap_2()
+                                        .px_4()
+                                        .pb_3()
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child(
+                                                    "A fast, minimal editor built on Rust \
+                                                     and GPUI (Zed's engine).",
+                                                ),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("\u{2022}  Multi-language syntax highlighting"),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("\u{2022}  Built-in terminal & extension store"),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("\u{2022}  Quick open, themes & accents"),
+                                        ),
+                                )
+                                .child(
+                                    div()
+                                        .flex()
+                                        .flex_row()
+                                        .items_center()
+                                        .justify_between()
+                                        .px_4()
+                                        .py_3()
+                                        .border_t_1()
+                                        .border_color(theme::color(theme::SURFACE))
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("Author: lordpipon"),
+                                        )
+                                        .child(
+                                            div()
+                                                .text_xs()
+                                                .text_color(theme::color(theme::FAINT))
+                                                .child("License: MIT"),
+                                        ),
+                                ),
+                        ),
+                )
+            })
     }
 }
 
@@ -1171,6 +1813,7 @@ fn extension_row(
         )
         .child(
             div()
+                .id(("ext-action", index))
                 .flex_none()
                 .px_2()
                 .py_1()
@@ -1188,7 +1831,8 @@ fn extension_row(
                     theme::color(theme::TEXT)
                 })
                 .cursor_pointer()
-                .id(("ext-action", index))
+                .hover(move |s| s.bg(accent.opacity(0.12)))
+                .active(move |s| s.bg(accent.opacity(0.25)))
                 .on_click(move |_, _, app: &mut App| {
                     let id = ext_id.clone();
                     app.update_entity(&this_entity, |this, cx| {

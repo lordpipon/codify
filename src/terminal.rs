@@ -60,6 +60,35 @@ impl Terminal {
         &self.shell_name
     }
 
+    pub fn is_running(&self) -> bool {
+        self.child.is_some()
+    }
+
+    /// Kill the current shell (if any) and spawn a fresh one.
+    pub fn restart(&mut self, cx: &mut Context<Self>) {
+        if let Some(mut child) = self.child.take() {
+            let _ = child.kill();
+        }
+        self.writer = None;
+        self._master = None;
+        self._task = None;
+        self._reader = None;
+        self.lines.clear();
+        self.current.clear();
+        self.pending.clear();
+        self.esc = EscState::Normal;
+        self.started = false;
+        self.start(cx);
+        cx.notify();
+    }
+
+    /// Send a line of input to the shell as if the user typed it.
+    pub fn send_command(&mut self, command: &str, cx: &mut Context<Self>) {
+        self.send(command);
+        self.send("\r");
+        cx.notify();
+    }
+
     pub fn start(&mut self, cx: &mut Context<Self>) {
         if self.started {
             return;
