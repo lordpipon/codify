@@ -144,10 +144,14 @@ jobs:
         run: mkdir -p dist
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
-          bundle: dist/codify-${{ steps.v.outputs.version }}.flatpak
+          bundle: codify-${{ steps.v.outputs.version }}.flatpak
           manifest-path: packaging/linux/org.codify.Codify.yml
           cache-key: flatpak-${{ runner.os }}
           branch: stable
+      - name: move bundle into dist
+        run: |
+          mkdir -p dist
+          mv codify-*.flatpak dist/
       - uses: actions/upload-artifact@v4
         with:
           name: flatpak
