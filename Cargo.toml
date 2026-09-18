@@ -1,6 +1,6 @@
 [package]
 name = "codify"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "Codify — a fast, minimal IDE built with GPUI (Zed's engine)"
 authors = ["lordpipon"]
@@ -47,7 +47,7 @@ assets = [
 name = "codify"
 maintainer = "lordpipon <126490646+lordpipon@users.noreply.github.com>"
 copyright = "2026, lordpipon"
-license-file = ["packaging/linux/LICENSE", "2"]
+license-file = ["LICENSE", "2"]
 extended-description = "A fast, minimal IDE built with GPUI (Zed's engine)."
 assets = [
   { source = "target/release/codify", dest = "/usr/bin/codify", mode = "755" },
