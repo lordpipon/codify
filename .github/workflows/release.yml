@@ -139,6 +139,14 @@ jobs:
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
       - name: xvfb + flatpak
         run: sudo apt-get update && sudo apt-get install -y xvfb flatpak flatpak-builder
+      - name: refresh flathub remote
+        run: |
+          sudo flatpak remote-delete --force flathub 2>/dev/null || true
+          sudo flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+          for i in 1 2 3 4 5; do
+            sudo flatpak remote-info --system flathub org.freedesktop.Sdk/x86_64/24.08 && break
+            sleep 5
+          done
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: dist/codify-${{ steps.v.outputs.version }}.flatpak
