@@ -2,7 +2,7 @@
 %global debug_package %{nil}
 
 Name:           codify
-Version:        0.1.0
+Version:        0.1.2
 Release:        1%{?dist}
 Summary:        A fast, minimal IDE built with GPUI
 
